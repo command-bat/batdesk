@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <title>Visualizador de Tela</title>
 </head>
+
 <body>
   <video id="video" autoplay playsinline controls style="
     width: 99vw;
@@ -14,43 +16,47 @@
 
   <script src="/socket.io/socket.io.js"></script>
 
-<script>
-  const socket = io();
-  const video = document.getElementById('video');
-  const urlParams = new URLSearchParams(window.location.search);
-  const broadcastId = urlParams.get('id');
-  let peerConnection;
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    const urlParams = new URLSearchParams(window.location.search);
+    const broadcastId = urlParams.get('id');
+    let peerConnection;
 
-  socket.on('connect', () => {
-    socket.emit('watcher', broadcastId);
-  });
+    socket.on('connect', () => {
+      socket.emit('watcher', broadcastId);
+    });
 
-  socket.on('offer', async (id, description) => {
-    peerConnection = new RTCPeerConnection();
-    peerConnection.ontrack = event => {
-      video.srcObject = event.streams[0];
-    };
-    peerConnection.onicecandidate = event => {
-      if (event.candidate) socket.emit('candidate', id, event.candidate);
-    };
-    await peerConnection.setRemoteDescription(description);
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', id, peerConnection.localDescription);
-  });
+    socket.on('offer', async (id, description) => {
+      peerConnection = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' }
+        ]
+      });
 
-  socket.on('candidate', (id, candidate) => {
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-  });
+      peerConnection.ontrack = event => {
+        video.srcObject = event.streams[0];
+      };
+      peerConnection.onicecandidate = event => {
+        if (event.candidate) socket.emit('candidate', id, event.candidate);
+      };
+      await peerConnection.setRemoteDescription(description);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('answer', id, peerConnection.localDescription);
+    });
 
-  socket.on('disconnectPeer', () => {
-    if (peerConnection) {
-      peerConnection.close();
-    }
-  });
-</script>
+    socket.on('candidate', (id, candidate) => {
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    socket.on('disconnectPeer', () => {
+      if (peerConnection) {
+        peerConnection.close();
+      }
+    });
+  </script>
 
 </body>
+
 </html>
-
-

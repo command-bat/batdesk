@@ -1,61 +1,68 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>Compartilhamento de Tela - Transmissor</title>
+    <meta charset="UTF-8" />
+    <title>Compartilhamento de Tela - Transmissor</title>
 </head>
+
 <body>
-<input id="name" placeholder="Nome da transmissão" />
-<button id="start">Iniciar Compartilhamento</button>
-<div id="link"></div>
+    <input id="name" placeholder="Nome da transmissão" />
+    <button id="start">Iniciar Compartilhamento</button>
+    <div id="link"></div>
 
-  <script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
 
-<script>
-  const socket = io();
-  const startButton = document.getElementById('start');
-  const nameInput = document.getElementById('name');
-  const linkDiv = document.getElementById('link');
-  let screenStream;
+    <script>
+        const socket = io();
+        const startButton = document.getElementById('start');
+        const nameInput = document.getElementById('name');
+        const linkDiv = document.getElementById('link');
+        let screenStream;
 
-  startButton.addEventListener('click', async () => {
-    try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      socket.emit('broadcaster', { name: nameInput.value || 'Sem nome' });
-    } catch (err) {
-      console.error("Erro ao capturar a tela:", err);
-    }
-  });
+        startButton.addEventListener('click', async () => {
+            try {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                socket.emit('broadcaster', { name: nameInput.value || 'Sem nome' });
+            } catch (err) {
+                console.error("Erro ao capturar a tela:", err);
+            }
+        });
 
-  socket.on('broadcast-id', (id) => {
-    linkDiv.innerHTML = `<p>Link da transmissão: <a href="/viewer?id=${id}" target="_blank">/viewer?id=${id}</a></p>`;
-  });
+        socket.on('broadcast-id', (id) => {
+            linkDiv.innerHTML = `<p>Link da transmissão: <a href="/viewer?id=${id}" target="_blank">/viewer?id=${id}</a></p>`;
+        });
 
-  const peers = {};
-  socket.on('watcher', async (id) => {
-    const peerConnection = new RTCPeerConnection();
-    screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
-    peerConnection.onicecandidate = event => {
-      if (event.candidate) socket.emit('candidate', id, event.candidate);
-    };
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('offer', id, peerConnection.localDescription);
-    peers[id] = peerConnection;
-  });
+        const peers = {};
+        socket.on('watcher', async (id) => {
+            const peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            });
 
-  socket.on('answer', (id, description) => {
-    peers[id].setRemoteDescription(description);
-  });
+            screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) socket.emit('candidate', id, event.candidate);
+            };
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', id, peerConnection.localDescription);
+            peers[id] = peerConnection;
+        });
 
-  socket.on('candidate', (id, candidate) => {
-    peers[id].addIceCandidate(new RTCIceCandidate(candidate));
-  });
+        socket.on('answer', (id, description) => {
+            peers[id].setRemoteDescription(description);
+        });
 
-  socket.on('disconnectPeer', id => {
-    if (peers[id]) {
-      peers[id].close();
-      delete peers[id];
-    }
-  });
-</script>
+        socket.on('candidate', (id, candidate) => {
+            peers[id].addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        socket.on('disconnectPeer', id => {
+            if (peers[id]) {
+                peers[id].close();
+                delete peers[id];
+            }
+        });
+    </script>
