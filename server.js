@@ -11,6 +11,8 @@ app.use(express.static('public'));
 let broadcaster;
 
 io.on('connection', (socket) => {
+  console.log('Novo cliente conectado');
+
   socket.on('broadcaster', () => {
     broadcaster = socket.id;
     socket.broadcast.emit('broadcaster');
