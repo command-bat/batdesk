@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Transmissões disponíveis</title>
+</head>
+<body>
+  <h1>Transmissões disponíveis</h1>
+  <ul id="list"></ul>
+
+  <script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const list = document.getElementById('list');
+
+  socket.on('connect', () => {
+    socket.emit('getBroadcasts');
+  });
+
+  socket.on('broadcasts', (broadcasts) => {
+    list.innerHTML = '';
+    for (const id in broadcasts) {
+      const li = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = `/viewer?id=${id}`;
+      link.textContent = broadcasts[id].name;
+      link.target = "_blank";
+      li.appendChild(link);
+      list.appendChild(li);
+    }
+
+    if (Object.keys(broadcasts).length === 0) {
+      list.innerHTML = '<li>Nenhuma transmissão disponível no momento.</li>';
+    }
+  });
+</script>
+
+</body>
+</html>

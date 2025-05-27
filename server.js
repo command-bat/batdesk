@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const { v4: uuidv4 } = require('uuid'); // npm install uuid
 
 const app = express();
 const server = http.createServer(app);
@@ -8,18 +9,28 @@ const io = socketIO(server);
 
 app.use(express.static('public'));
 
-let broadcaster;
+const broadcasts = {}; // { id: { socketId, name } }
 
 io.on('connection', (socket) => {
     console.log('Novo cliente conectado');
 
-    socket.on('broadcaster', () => {
-        broadcaster = socket.id;
-        socket.broadcast.emit('broadcaster');
+    socket.on('getBroadcasts', () => {
+        socket.emit('broadcasts', broadcasts);
     });
 
-    socket.on('watcher', () => {
-        socket.to(broadcaster).emit('watcher', socket.id);
+
+    socket.on('broadcaster', ({ name }) => {
+        const id = uuidv4();
+        broadcasts[id] = { socketId: socket.id, name };
+        socket.broadcast.emit('broadcasts', broadcasts);
+        socket.emit('broadcast-id', id);
+    });
+
+    socket.on('watcher', (broadcastId) => {
+        const broadcast = broadcasts[broadcastId];
+        if (broadcast) {
+            socket.to(broadcast.socketId).emit('watcher', socket.id);
+        }
     });
 
     socket.on('offer', (id, message) => {
@@ -35,8 +46,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('Cliente desconectado');
-        socket.to(broadcaster).emit('disconnectPeer', socket.id);
+        const broadcastId = Object.keys(broadcasts).find(
+            id => broadcasts[id].socketId === socket.id
+        );
+        if (broadcastId) {
+            delete broadcasts[broadcastId];
+            io.emit('broadcasts', broadcasts);
+        } else {
+            Object.values(broadcasts).forEach(b => {
+                socket.to(b.socketId).emit('disconnectPeer', socket.id);
+            });
+        }
     });
 });
 

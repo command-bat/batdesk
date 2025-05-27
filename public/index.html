@@ -5,57 +5,57 @@
   <title>Compartilhamento de Tela - Transmissor</title>
 </head>
 <body>
-  <h1>Compartilhamento de Tela - Transmissor</h1>
-  <button id="start">Iniciar Compartilhamento</button>
+<input id="name" placeholder="Nome da transmissão" />
+<button id="start">Iniciar Compartilhamento</button>
+<div id="link"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const startButton = document.getElementById('start');
-    let screenStream;
 
-    startButton.addEventListener('click', async () => {
-      try {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        socket.emit('broadcaster');
-      } catch (err) {
-        console.error("Erro ao capturar a tela:", err);
-      }
-    });
+<script>
+  const socket = io();
+  const startButton = document.getElementById('start');
+  const nameInput = document.getElementById('name');
+  const linkDiv = document.getElementById('link');
+  let screenStream;
 
-    const peers = {};
+  startButton.addEventListener('click', async () => {
+    try {
+      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      socket.emit('broadcaster', { name: nameInput.value || 'Sem nome' });
+    } catch (err) {
+      console.error("Erro ao capturar a tela:", err);
+    }
+  });
 
-    socket.on('watcher', async (id) => {
-      const peerConnection = new RTCPeerConnection();
-      screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
+  socket.on('broadcast-id', (id) => {
+    linkDiv.innerHTML = `<p>Link da transmissão: <a href="/viewer?id=${id}" target="_blank">/viewer?id=${id}</a></p>`;
+  });
 
-      peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-          socket.emit('candidate', id, event.candidate);
-        }
-      };
+  const peers = {};
+  socket.on('watcher', async (id) => {
+    const peerConnection = new RTCPeerConnection();
+    screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
+    peerConnection.onicecandidate = event => {
+      if (event.candidate) socket.emit('candidate', id, event.candidate);
+    };
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('offer', id, peerConnection.localDescription);
+    peers[id] = peerConnection;
+  });
 
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit('offer', id, peerConnection.localDescription);
+  socket.on('answer', (id, description) => {
+    peers[id].setRemoteDescription(description);
+  });
 
-      peers[id] = peerConnection;
-    });
+  socket.on('candidate', (id, candidate) => {
+    peers[id].addIceCandidate(new RTCIceCandidate(candidate));
+  });
 
-    socket.on('answer', (id, description) => {
-      peers[id].setRemoteDescription(description);
-    });
-
-    socket.on('candidate', (id, candidate) => {
-      peers[id].addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    socket.on('disconnectPeer', id => {
-      if (peers[id]) {
-        peers[id].close();
-        delete peers[id];
-      }
-    });
-  </script>
-</body>
-</html>
+  socket.on('disconnectPeer', id => {
+    if (peers[id]) {
+      peers[id].close();
+      delete peers[id];
+    }
+  });
+</script>
