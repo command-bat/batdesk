@@ -2,48 +2,58 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Compartilhamento de Tela</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-    video { width: 80%; border: 1px solid #ccc; margin-top: 20px; }
-  </style>
+  <title>Compartilhamento de Tela - Transmissor</title>
 </head>
 <body>
-  <h1>Compartilhamento de Tela</h1>
+  <h1>Compartilhamento de Tela - Transmissor</h1>
   <button id="start">Iniciar Compartilhamento</button>
-  <video id="video" autoplay playsinline></video>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const startButton = document.getElementById('start');
-    const videoElement = document.getElementById('video');
     const socket = io();
-
-    let mediaStream = null;
-    let mediaRecorder = null;
+    const startButton = document.getElementById('start');
+    let screenStream;
 
     startButton.addEventListener('click', async () => {
       try {
-        mediaStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { cursor: "always" },
-          audio: false
-        });
-
-        videoElement.srcObject = mediaStream;
-
-        // Enviar dados de vídeo para o servidor
-        const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm; codecs=vp8' });
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            socket.emit('stream', event.data);
-          }
-        };
-
-        mediaRecorder.start(100); // Envia dados a cada 100ms
-
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        socket.emit('broadcaster');
       } catch (err) {
         console.error("Erro ao capturar a tela:", err);
+      }
+    });
+
+    const peers = {};
+
+    socket.on('watcher', async (id) => {
+      const peerConnection = new RTCPeerConnection();
+      screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
+
+      peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+          socket.emit('candidate', id, event.candidate);
+        }
+      };
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', id, peerConnection.localDescription);
+
+      peers[id] = peerConnection;
+    });
+
+    socket.on('answer', (id, description) => {
+      peers[id].setRemoteDescription(description);
+    });
+
+    socket.on('candidate', (id, candidate) => {
+      peers[id].addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    socket.on('disconnectPeer', id => {
+      if (peers[id]) {
+        peers[id].close();
+        delete peers[id];
       }
     });
   </script>
