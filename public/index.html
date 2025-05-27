@@ -22,7 +22,15 @@
 
         startButton.addEventListener('click', async () => {
             try {
-                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: {
+                        // Solicita o áudio da guia ou sistema se suportado
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        sampleRate: 44100
+                    }
+                });
                 socket.emit('broadcaster', { name: nameInput.value || 'Sem nome' });
             } catch (err) {
                 console.error("Erro ao capturar a tela:", err);
