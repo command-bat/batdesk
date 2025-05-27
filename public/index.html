@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Compartilhamento de Tela</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    video { width: 80%; border: 1px solid #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Compartilhamento de Tela</h1>
+  <button id="start">Iniciar Compartilhamento</button>
+  <video id="video" autoplay playsinline></video>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const startButton = document.getElementById('start');
+    const videoElement = document.getElementById('video');
+    const socket = io();
+
+    let mediaStream = null;
+    let mediaRecorder = null;
+
+    startButton.addEventListener('click', async () => {
+      try {
+        mediaStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: false
+        });
+
+        videoElement.srcObject = mediaStream;
+
+        // Enviar dados de vídeo para o servidor
+        const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm; codecs=vp8' });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            socket.emit('stream', event.data);
+          }
+        };
+
+        mediaRecorder.start(100); // Envia dados a cada 100ms
+
+      } catch (err) {
+        console.error("Erro ao capturar a tela:", err);
+      }
+    });
+  </script>
+</body>
+</html>
