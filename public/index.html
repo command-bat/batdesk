@@ -73,4 +73,15 @@
                 delete peers[id];
             }
         });
+
+
+        setInterval(() => {
+            socket.emit('keep-alive');
+        }, 15000); // a cada 15 segundos
+
+
+        socket.on('disconnected', () => {
+            alert('A conexão com o servidor foi perdida. A transmissão foi encerrada.');
+            location.reload(); // ou qualquer outro comportamento desejado
+        });
     </script>

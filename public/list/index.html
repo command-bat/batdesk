@@ -33,6 +33,11 @@
       list.innerHTML = '<li>Nenhuma transmissão disponível no momento.</li>';
     }
   });
+
+  setInterval(() => {
+    socket.emit('getBroadcasts');
+}, 10000); // a cada 10 segundos
+
 </script>
 
 </body>

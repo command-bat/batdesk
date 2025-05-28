@@ -45,6 +45,8 @@ io.on('connection', (socket) => {
         socket.to(id).emit('candidate', socket.id, message);
     });
 
+
+    
     socket.on('disconnect', () => {
         const broadcastId = Object.keys(broadcasts).find(
             id => broadcasts[id].socketId === socket.id
@@ -52,12 +54,19 @@ io.on('connection', (socket) => {
         if (broadcastId) {
             delete broadcasts[broadcastId];
             io.emit('broadcasts', broadcasts);
+            socket.emit('disconnected');
         } else {
             Object.values(broadcasts).forEach(b => {
                 socket.to(b.socketId).emit('disconnectPeer', socket.id);
             });
         }
     });
+
+
+    socket.on('keep-alive', () => {
+        // opcional: atualizar um timestamp ou só para evitar desconexão
+    });
+
 });
 
 const PORT = process.env.PORT || 3000;
