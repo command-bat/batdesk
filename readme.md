@@ -34,4 +34,4 @@ npm run dev
 ```
 
 ---
-<!-- PORTFOLIO_DATA_START { "title": "batdesk", "fullDescription": "Projeto focado em criar um site aonde varias pessoas podem compartilhar a tela de um dispositivo ao mesmo tempo, e compartilhado para outra pessoa ver.", "image": "", "tags": [ "Node.js", "Express", "HTML", "CSS", "JS", ] } PORTFOLIO_DATA_END -->
+<!-- PORTFOLIO_DATA_START { "title": "batdesk", "fullDescription": "Projeto focado em criar um site aonde varias pessoas podem compartilhar a tela de um dispositivo ao mesmo tempo, e compartilhado para outra pessoa ver.", "image": "", "tags": [ "Node.js", "Express", "HTML", "CSS", "JS" ] } PORTFOLIO_DATA_END -->
